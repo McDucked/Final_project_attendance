@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, ScrollView } from 'react-native';
 import { Card, Title, Paragraph, FAB, Appbar, Chip, SegmentedButtons } from 'react-native-paper';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { auth, db } from '../../src/config/firebase';
+import { auth, db } from '../../../src/config/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,12 @@ LocaleConfig.locales['lt'] = {
 };
 LocaleConfig.defaultLocale = 'lt';
 
+const toDate = (ts: any) => {
+  if (!ts) return new Date();
+  if (typeof (ts as any)?.toDate === 'function') return (ts as any).toDate();
+  if (typeof ts === 'number') return new Date(ts);
+  return new Date(ts);
+};
 export default function HomeScreen() {
   const router = useRouter();
   const [attendances, setAttendances] = useState<any[]>([]);
@@ -59,7 +65,7 @@ export default function HomeScreen() {
         attendedLectureIds.add(data.lectureId);
         
         // Mark attended dates on calendar with green dot
-        const date = new Date(data.timestamp);
+        const date = toDate(data.timestamp);
         const dateString = date.toISOString().split('T')[0];
         
         if (!dates[dateString]) {
@@ -85,8 +91,8 @@ export default function HomeScreen() {
           const lectureId = docSnapshot.id;
         
         // Check if student didn't attend this lecture
-        if (!attendedLectureIds.has(lectureId) && lectureData.date) {
-          const lectureDate = new Date(lectureData.date);
+          if (!attendedLectureIds.has(lectureId) && lectureData.date) {
+          const lectureDate = toDate(lectureData.date);
           const dateString = lectureDate.toISOString().split('T')[0];
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -118,7 +124,7 @@ export default function HomeScreen() {
       
       // Sort in JavaScript instead of Firestore
       attendancesList.sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        return toDate(b.timestamp).getTime() - toDate(a.timestamp).getTime();
       });
       
       setAttendances(attendancesList);
@@ -130,10 +136,17 @@ export default function HomeScreen() {
     }
   };
 
-  // logout handled in Profile screen; helper removed to avoid unused variable
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const renderAttendanceItem = ({ item }: { item: any }) => {
-    const date = new Date(item.timestamp);
+    const date = toDate(item.timestamp);
     return (
       <Card style={styles.card}>
         <Card.Content>
@@ -163,7 +176,7 @@ export default function HomeScreen() {
     if (!selectedDate) return attendances;
     
     return attendances.filter(item => {
-      const itemDate = new Date(item.timestamp).toISOString().split('T')[0];
+      const itemDate = toDate(item.timestamp).toISOString().split('T')[0];
       return itemDate === selectedDate;
     });
   };

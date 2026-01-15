@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -26,7 +27,7 @@ try {
   } else {
     auth = initializeAuth(app);
   }
-} catch (_e) {
+} catch (e) {
   // Fallback for web or environments where react-native persistence is unavailable
   auth = initializeAuth(app);
 }

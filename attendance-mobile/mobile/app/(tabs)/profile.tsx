@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Card, Title, Paragraph, Button, Appbar, Divider, Avatar } from 'react-native-paper';
-import { auth, db } from '../../src/config/firebase';
+import { auth, db } from '../../../src/config/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'expo-router';
@@ -10,13 +10,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [userData, setUserData] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0 });
-  const [_loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadUserData();
     loadStats();
   }, []);
-
   const loadUserData = async () => {
     try {
       const user = auth.currentUser;
@@ -40,15 +38,13 @@ export default function ProfileScreen() {
         collection(db, 'attendance'),
         where('studentId', '==', user.uid)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const total = querySnapshot.size;
 
       setStats({ total });
     } catch (error) {
       console.error('Error loading stats:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -201,7 +197,6 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     marginBottom: 15,
-    elevation: 3,
   },
   infoTitle: {
     fontSize: 18,

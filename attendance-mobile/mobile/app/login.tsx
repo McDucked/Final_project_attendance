@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { TextInput, Button, Title } from 'react-native-paper';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../src/config/firebase';
+import { auth, db } from '../../src/config/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 
@@ -48,9 +48,8 @@ export default function LoginScreen() {
       await signInWithEmailAndPassword(auth, email, password);
       router.replace('/');
     } catch (error: any) {
-      console.error('Login error', error);
       let errorMessage = 'Prisijungimo klaida';
-
+      
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         errorMessage = 'Neteisingas el. paštas arba slaptažodis';
       } else if (error.code === 'auth/invalid-email') {
@@ -58,9 +57,8 @@ export default function LoginScreen() {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Per daug bandymų. Pabandykite vėliau';
       }
-
-      // Append raw error code for debugging
-      showError(`${errorMessage} (${error.code || 'unknown'})`);
+      
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,9 +93,8 @@ export default function LoginScreen() {
         router.replace('/');
       }, 1000);
     } catch (error: any) {
-      console.error('Register error', error);
       let errorMessage = 'Registracijos klaida';
-
+      
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Toks el. paštas jau registruotas';
       } else if (error.code === 'auth/invalid-email') {
@@ -105,8 +102,8 @@ export default function LoginScreen() {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Per silpnas slaptažodis';
       }
-
-      showError(`${errorMessage} (${error.code || 'unknown'})`);
+      
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

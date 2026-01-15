@@ -55,7 +55,7 @@ export function verifyQRCode(qrCodeString: string): {
     }
 
     return { valid: true, data: qrData };
-  } catch (_error) {
+  } catch (error) {
     return { valid: false, error: 'Failed to parse QR code' };
   }
 }
@@ -71,7 +71,7 @@ export function getRemainingTime(qrCodeString: string): number {
     const now = Date.now();
     const remaining = Math.max(0, Math.floor((qrData.expiresAt - now) / 1000));
     return remaining;
-  } catch (_error) {
+  } catch {
     return 0;
   }
 }
