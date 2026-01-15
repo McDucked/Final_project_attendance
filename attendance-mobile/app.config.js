@@ -75,9 +75,7 @@ module.exports = {
       firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET,
       firebaseMessagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
       firebaseAppId: process.env.FIREBASE_APP_ID,
-      eas: {
-        projectId: "your-eas-project-id"
-      }
+      // removed eas.projectId to avoid CLI prompting for EAS login during local development
     }
   }
 };

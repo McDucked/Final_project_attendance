@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
 import Constants from 'expo-constants';
@@ -16,9 +16,22 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-});
+let auth;
+try {
+  // Try to use React Native persistence when available (native apps)
+  const rnAuth = require('firebase/auth/react-native');
+  const getReactNativePersistence = rnAuth && (rnAuth.getReactNativePersistence || rnAuth.default?.getReactNativePersistence);
+  if (typeof getReactNativePersistence === 'function') {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  } else {
+    auth = initializeAuth(app);
+  }
+} catch (e) {
+  // Fallback for web or environments where react-native persistence is unavailable
+  auth = initializeAuth(app);
+}
 const db = getFirestore(app);
 const realtimeDb = getDatabase(app);
 
