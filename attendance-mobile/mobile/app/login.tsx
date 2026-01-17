@@ -11,9 +11,9 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { TextInput, Button, Title } from 'react-native-paper';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '../../src/config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
@@ -45,7 +45,27 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // Fetch user role from Firestore and allow only students in mobile app
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        await signOut(auth);
+        showError('Vartotojo informacija nerasta. Kreipkitės į administratorių.');
+        return;
+      }
+
+      const userData = userSnap.data() as any;
+      const role = userData?.role;
+
+      if (role !== 'student') {
+        await signOut(auth);
+        showError('Šiai programėlei reikia studento paskyros');
+        return;
+      }
+
       router.replace('/');
     } catch (error: any) {
       let errorMessage = 'Prisijungimo klaida';

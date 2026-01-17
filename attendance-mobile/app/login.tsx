@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -11,13 +11,19 @@ import {
   TouchableOpacity
 } from 'react-native';
 import { TextInput, Button, Title } from 'react-native-paper';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '../src/config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const router = useRouter();
+  useEffect(() => {
+    // If someone opens the mobile login route on web, redirect to teacher-login
+    if (Platform.OS === 'web') {
+      router.replace('/teacher-login');
+    }
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -45,7 +51,28 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // Fetch user role from Firestore
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        // No user doc -> sign out and show error
+        await signOut(auth);
+        showError('Vartotojo informacija nerasta. Kreipkitės į administratorių.');
+        return;
+      }
+
+      const userData = userSnap.data() as any;
+      const role = userData?.role;
+
+      if (role !== 'student') {
+        await signOut(auth);
+        showError('Šiai platformai reikia studento paskyros');
+        return;
+      }
+
       router.replace('/');
     } catch (error: any) {
       console.error('Login error', error);

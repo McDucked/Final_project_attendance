@@ -9,7 +9,7 @@ export default function ModeChooser() {
   useEffect(() => {
     // Auto-redirect: web -> teacher, native (Expo Go) -> student tabs
     if (Platform.OS === 'web') {
-      router.replace('/teacher');
+      router.replace('/teacher-login');
       return;
     }
 
