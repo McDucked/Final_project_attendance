@@ -39,8 +39,6 @@ export default function TeacherScreen() {
 
         if (role !== 'teacher') {
           await signOut(auth);
-          // Inform and redirect
-          // eslint-disable-next-line no-alert
           alert('Šiai daliai prieiti reikia dėstytojo paskyros');
           router.replace(Platform.OS === 'web' ? '/teacher-login' : '/login');
           setCheckingAuth(false);

@@ -21,7 +21,6 @@ export default function ModeChooser() {
     }
   }, []);
 
-  // Fallback UI while redirecting (also allows manual override)
   const goStudent = () => router.push('/(tabs)');
   const goTeacher = () => router.push('/teacher');
 

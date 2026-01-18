@@ -29,7 +29,6 @@ export default function QRScannerScreen() {
     setLoading(true);
 
     try {
-      // Parse QR code data (JSON format)
       let qrData;
       try {
         qrData = JSON.parse(data);

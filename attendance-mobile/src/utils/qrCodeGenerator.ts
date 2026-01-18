@@ -5,13 +5,6 @@ interface QRCodeData {
   generatedAt: number;
 }
 
-/**
- * Generate a time-limited QR code for a lecture
- * @param lectureId - The lecture ID from Firestore
- * @param durationSeconds - How long the QR code is valid (default: 60 seconds)
- * @returns JSON string to be encoded in QR code
- */
-
 export function generateTimeLimitedQR(
   lectureId: string, 
   durationSeconds: number = 60
@@ -32,11 +25,6 @@ export function generateTimeLimitedQR(
   return JSON.stringify(qrData);
 }
 
-/**
- * Verify if QR code is still valid
- * @param qrCodeString - The scanned QR code string
- * @returns Object with validity status and data
- */
 export function verifyQRCode(qrCodeString: string): {
   valid: boolean;
   data?: QRCodeData;
@@ -60,11 +48,6 @@ export function verifyQRCode(qrCodeString: string): {
   }
 }
 
-/**
- * Get remaining time in seconds for a QR code
- * @param qrCodeString - The QR code string
- * @returns Remaining seconds or 0 if expired
- */
 export function getRemainingTime(qrCodeString: string): number {
   try {
     const qrData: QRCodeData = JSON.parse(qrCodeString);
