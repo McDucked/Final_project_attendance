@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, Alert } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { Button, ActivityIndicator, Appbar, Snackbar } from 'react-native-paper';
 import { auth, db } from '../src/config/firebase';
-import { doc, getDoc, addDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 
 export default function QRScannerScreen() {
@@ -78,8 +78,17 @@ export default function QRScannerScreen() {
         return;
       }
 
-      // Check if already attended
-      const existingAttendance = await checkExistingAttendance(lectureId);
+      // Require logged-in user
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        setSnackbar({ visible: true, message: 'Prašome prisijungti prieš skenuojant' });
+        setLoading(false);
+        setTimeout(() => setScanned(false), 2000);
+        return;
+      }
+
+      // Check if already attended (token match or same-day attendance)
+      const existingAttendance = await checkExistingAttendance(lectureId, token);
       if (existingAttendance) {
         setSnackbar({ visible: true, message: 'Dalyvavimas jau užfiksuotas' });
         setLoading(false);
@@ -91,9 +100,10 @@ export default function QRScannerScreen() {
       await addDoc(collection(db, 'attendance'), {
         lectureId: lectureId,
         lectureName: lectureData.name || 'Paskaita',
-        studentId: auth.currentUser?.uid,
-        timestamp: new Date().toISOString(),
+        studentId: uid,
+        timestamp: serverTimestamp(),
         method: 'qr',
+        token: token,
       });
 
       Alert.alert(
@@ -111,15 +121,53 @@ export default function QRScannerScreen() {
     }
   };
 
-  const checkExistingAttendance = async (lectureId: string) => {
+  const checkExistingAttendance = async (lectureId: string, token?: string) => {
     try {
-      const q = query(
+      const uid = auth.currentUser?.uid;
+      if (!uid) return false;
+
+      // 1) If token provided, prefer exact token match (same session)
+      if (token) {
+        const tq = query(
+          collection(db, 'attendance'),
+          where('lectureId', '==', lectureId),
+          where('studentId', '==', uid),
+          where('token', '==', token)
+        );
+        const tsnap = await getDocs(tq);
+        if (!tsnap.empty) return true;
+      }
+
+      // 2) Fetch all attendances for this lecture+student and check client-side for same-day
+      const fallbackQ = query(
         collection(db, 'attendance'),
         where('lectureId', '==', lectureId),
-        where('studentId', '==', auth.currentUser?.uid)
+        where('studentId', '==', uid)
       );
-      const snapshot = await getDocs(q);
-      return !snapshot.empty;
+      const fbSnap = await getDocs(fallbackQ);
+      const now = new Date();
+      for (const docSnap of fbSnap.docs) {
+        const data = docSnap.data();
+        const tsVal = data.timestamp;
+        let dt: Date | null = null;
+        if (tsVal && typeof tsVal === 'object' && typeof tsVal.toDate === 'function') {
+          dt = tsVal.toDate();
+        } else if (typeof tsVal === 'string') {
+          const parsed = new Date(tsVal);
+          if (!isNaN(parsed.getTime())) dt = parsed;
+        }
+        if (dt) {
+          if (
+            dt.getFullYear() === now.getFullYear() &&
+            dt.getMonth() === now.getMonth() &&
+            dt.getDate() === now.getDate()
+          ) {
+            return true;
+          }
+        }
+      }
+
+      return false;
     } catch (error) {
       console.error('Error checking attendance:', error);
       return false;

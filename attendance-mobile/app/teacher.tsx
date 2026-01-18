@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, TextInput, Button, ScrollView, Platform, TouchableOpacity, Modal } from 'react-native';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '../src/config/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import { useTeacherGenerator } from '../src/hooks/useTeacherGenerator';
 
@@ -21,6 +21,9 @@ export default function TeacherScreen() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [lectures, setLectures] = useState<Array<{ id: string; name?: string }>>([]);
   const [showLectureList, setShowLectureList] = useState(false);
+  const [showAttendees, setShowAttendees] = useState(false);
+  const [attendees, setAttendees] = useState<Array<any>>([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -73,6 +76,56 @@ export default function TeacherScreen() {
     loadLectures();
     return () => { mounted = false; };
   }, []);
+
+  // Load attendees for a given lecture (used by modal and effects)
+  const loadAttendeesForLecture = async (lecId: string) => {
+    setLoadingAttendees(true);
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('lectureId', '==', lecId)
+      );
+      const snap = await getDocs(q);
+      const items: Array<any> = [];
+      for (const d of snap.docs) {
+        const data = d.data() as any;
+        let name = data.studentId || 'Unknown';
+        try {
+          const userDoc = await getDoc(doc(db, 'users', data.studentId));
+          if (userDoc.exists()) {
+            const ud = userDoc.data() as any;
+            name = ud.name || ud.email || data.studentId;
+          }
+        } catch (e) {
+          // ignore
+        }
+        items.push({ id: d.id, ...data, studentName: name });
+      }
+      // sort by timestamp desc (safe guards for different timestamp shapes)
+      items.sort((a, b) => {
+        const getTime = (t: any) => {
+          if (!t) return 0;
+          if (typeof t.toDate === 'function') return t.toDate().getTime();
+          const parsed = new Date(t);
+          return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+        };
+        return getTime(b.timestamp) - getTime(a.timestamp);
+      });
+      setAttendees(items);
+    } catch (e) {
+      console.error('Failed to load attendees', e);
+      setAttendees([]);
+    } finally {
+      setLoadingAttendees(false);
+    }
+  };
+
+  // Whenever selected lecture changes while attendees modal is open, reload attendees
+  useEffect(() => {
+    if (showAttendees && lectureId) {
+      loadAttendeesForLecture(lectureId);
+    }
+  }, [lectureId, showAttendees]);
 
   // Conditionally load QR component only on web to avoid native bundle issues
   let QRCode: any = null;
@@ -183,6 +236,59 @@ export default function TeacherScreen() {
         </View>
       ) : null}
 
+      <View style={{ marginTop: 12 }}>
+        <Button
+          title="Peržiūrėti, kas nuskenavo"
+          onPress={async () => {
+            if (!lectureId) {
+              // eslint-disable-next-line no-alert
+              alert('Pasirinkite paskaitą pirmiausia');
+              return;
+            }
+            setShowAttendees(true);
+            loadAttendeesForLecture(lectureId);
+          }}
+        />
+      </View>
+
+      {showAttendees && (
+        <Modal
+          visible={showAttendees}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowAttendees(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+              <Text style={styles.modalTitle}>Dalyvavimai</Text>
+              {loadingAttendees ? (
+                <Text style={styles.smallText}>Kraunama...</Text>
+              ) : attendees.length === 0 ? (
+                <Text style={styles.smallText}>Dalyvių nėra</Text>
+              ) : (
+                <ScrollView>
+                  {attendees.map((a) => {
+                      const ts = (a.timestamp && typeof a.timestamp === 'object' && typeof a.timestamp.toDate === 'function')
+                        ? a.timestamp.toDate()
+                        : new Date(a.timestamp);
+
+                      return (
+                        <View key={a.id} style={styles.attendeeRow}>
+                          <Text style={styles.attendeeName}>{a.studentName}</Text>
+                          <Text style={styles.attendeeTime}>{ts.toLocaleString('lt-LT')}</Text>
+                        </View>
+                      );
+                    })}
+                </ScrollView>
+              )}
+              <View style={{ marginTop: 12 }}>
+                <Button title="Uždaryti" onPress={() => setShowAttendees(false)} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {Platform.OS === 'web' && (
         <Text style={styles.note}>Running on web — QR shown as JSON string for copy/scan.</Text>
       )}
@@ -223,4 +329,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '80%', maxWidth: 560, maxHeight: '70%', backgroundColor: '#fff', borderRadius: 10, padding: 16, borderWidth: 1, borderColor: '#e6e9ee' },
   modalTitle: { fontSize: 18, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
+  attendeeRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  attendeeName: { fontSize: 16, color: '#111', fontWeight: '600' },
+  attendeeTime: { fontSize: 12, color: '#666', marginTop: 4 },
 });

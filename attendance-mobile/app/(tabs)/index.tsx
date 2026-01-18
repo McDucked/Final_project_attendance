@@ -20,18 +20,30 @@ LocaleConfig.locales['lt'] = {
 };
 LocaleConfig.defaultLocale = 'lt';
 
+const toDate = (ts: any) => {
+  if (!ts) return new Date();
+  if (typeof (ts as any)?.toDate === 'function') return (ts as any).toDate();
+  if (typeof ts === 'number') return new Date(ts);
+  return new Date(ts);
+};
+
+const toLocalYMD = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 export default function HomeScreen() {
   const router = useRouter();
   const [attendances, setAttendances] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
+  const [viewMode, setViewMode] = useState('list');
   const [selectedDate, setSelectedDate] = useState('');
   const [markedDates, setMarkedDates] = useState<any>({});
 
   useEffect(() => {
     loadAttendances();
   }, []);
-
   const loadAttendances = async () => {
     setLoading(true);
     try {
@@ -59,8 +71,8 @@ export default function HomeScreen() {
         attendedLectureIds.add(data.lectureId);
         
         // Mark attended dates on calendar with green dot
-        const date = new Date(data.timestamp);
-        const dateString = date.toISOString().split('T')[0];
+        const date = toDate(data.timestamp);
+        const dateString = toLocalYMD(date);
         
         if (!dates[dateString]) {
           dates[dateString] = {
@@ -86,8 +98,8 @@ export default function HomeScreen() {
         
         // Check if student didn't attend this lecture
         if (!attendedLectureIds.has(lectureId) && lectureData.date) {
-          const lectureDate = new Date(lectureData.date);
-          const dateString = lectureDate.toISOString().split('T')[0];
+          const lectureDate = toDate(lectureData.date);
+          const dateString = toLocalYMD(lectureDate);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
@@ -118,7 +130,7 @@ export default function HomeScreen() {
       
       // Sort in JavaScript instead of Firestore
       attendancesList.sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        return toDate(b.timestamp).getTime() - toDate(a.timestamp).getTime();
       });
       
       setAttendances(attendancesList);
@@ -133,7 +145,7 @@ export default function HomeScreen() {
   // logout handled in Profile screen; helper removed to avoid unused variable
 
   const renderAttendanceItem = ({ item }: { item: any }) => {
-    const date = new Date(item.timestamp);
+    const date = toDate(item.timestamp);
     return (
       <Card style={styles.card}>
         <Card.Content>
@@ -161,11 +173,11 @@ export default function HomeScreen() {
 
   const getFilteredAttendances = () => {
     if (!selectedDate) return attendances;
-    
-    return attendances.filter(item => {
-      const itemDate = new Date(item.timestamp).toISOString().split('T')[0];
+
+        return attendances.filter(item => {
+      const itemDate = toLocalYMD(toDate(item.timestamp));
       return itemDate === selectedDate;
-    });
+        });
   };
 
   const handleDayPress = (day: any) => {
@@ -183,6 +195,7 @@ export default function HomeScreen() {
         }
       >
         <Calendar
+          firstDay={1}
           markedDates={{
             ...markedDates,
             ...(selectedDate && {
